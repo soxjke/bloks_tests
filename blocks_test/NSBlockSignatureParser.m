@@ -26,8 +26,61 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //  THE SOFTWARE.
 
+#define SEND_SAFE_MESSAGE(aTarget, aSelector, ...) [self sendSafeMessageToTarget:aTarget selector:aSelector, __VA_ARGS__]
+
 #import "NSBlockSignatureParser.h"
 
+@interface NSBlockSignatureParser ()
+
+@property (nonatomic, strong) NSString *signature;
+
+@end
+
 @implementation NSBlockSignatureParser
+
++ (instancetype)parserWithSignatureString:(NSString *)signature
+{
+    return [[self alloc] initWithSignatureString:signature];
+}
+
+- (instancetype)initWithSignatureString:(NSString *)signature
+{
+    self = [super init];
+    if (self)
+    {
+        self.signature = signature;
+    }
+    return self;
+}
+
+- (void)parse
+{
+    SEND_SAFE_MESSAGE(self.delegate, @selector(parserDidFinish:), self);
+}
+
+- (void)sendSafeMessageToTarget:(id)target selector:(SEL)selector, ...
+{
+    if ([target respondsToSelector:selector])
+    {
+        NSInvocation *invocation = [NSInvocation new];
+        
+        [invocation setArgument:(__bridge void *)(target)   atIndex:0];
+        [invocation setArgument:selector                    atIndex:1];
+        
+        va_list args;
+        va_start(args, selector);
+        
+        void *arg = selector;
+        int i = 1;
+        
+        while ((arg = va_arg(args, void *)))
+        {
+            [invocation setArgument:arg atIndex:++i];
+        }
+        va_end(args);
+        
+        [invocation invoke];
+    }
+}
 
 @end
